@@ -21,6 +21,8 @@ import torchvision.transforms as transforms
 from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import Subset
 
+from torch.utils.tensorboard import SummaryWriter
+
 model_names = sorted(name for name in models.__dict__
                      if name.islower() and not name.startswith("__")
                      and callable(models.__dict__[name]))
@@ -79,10 +81,12 @@ parser.add_argument('--multiprocessing-distributed', action='store_true',
 parser.add_argument('--dummy', action='store_true', help="use fake data to benchmark")
 
 best_acc1 = 0
+writer = SummaryWriter(log_dir="runs/5")
 
 
 def main():
     args = parser.parse_args()
+
 
     if args.seed is not None:
         random.seed(args.seed)
@@ -118,6 +122,7 @@ def main():
     else:
         # Simply call main_worker function
         main_worker(args.gpu, ngpus_per_node, args)
+    writer.close()
 
 
 def main_worker(gpu, ngpus_per_node, args):
@@ -143,7 +148,10 @@ def main_worker(gpu, ngpus_per_node, args):
     else:
         print("=> creating model '{}'".format(args.arch))
         model = models.__dict__[args.arch]()
-
+    fc = model.fc
+    in_features = fc.in_features
+    new_fc = torch.nn.Linear(in_features, 200)
+    model.fc = new_fc
     if not torch.cuda.is_available() and not torch.backends.mps.is_available():
         print('using CPU, this will be slow')
     elif args.distributed:
@@ -178,7 +186,6 @@ def main_worker(gpu, ngpus_per_node, args):
             model.cuda()
         else:
             model = torch.nn.DataParallel(model).cuda()
-
     if torch.cuda.is_available():
         if args.gpu:
             device = torch.device('cuda:{}'.format(args.gpu))
@@ -190,7 +197,7 @@ def main_worker(gpu, ngpus_per_node, args):
         device = torch.device("cpu")
     # define loss function (criterion), optimizer, and learning rate scheduler
     criterion = nn.CrossEntropyLoss().to(device)
-
+    writer.add_graph(model, torch.zeros((1, 3, 224, 224), device=device))
     optimizer = torch.optim.SGD(model.parameters(), args.lr,
                                 momentum=args.momentum,
                                 weight_decay=args.weight_decay)
@@ -341,7 +348,8 @@ def train(train_loader, model, criterion, optimizer, epoch, device, args):
 
         if i % args.print_freq == 0:
             progress.display(i + 1)
-
+    writer.add_scalar("train_loss", loss, epoch)
+    writer.add_scalar("accuracy", acc5[0], epoch)
 
 def validate(val_loader, model, criterion, args):
     def run_validate(loader, base_progress=0):
