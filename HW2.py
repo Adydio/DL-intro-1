@@ -5,7 +5,7 @@ import shutil
 import time
 import warnings
 from enum import Enum
-
+from PIL import Image
 import torch
 import torch.backends.cudnn as cudnn
 import torch.distributed as dist
@@ -81,10 +81,11 @@ parser.add_argument('--multiprocessing-distributed', action='store_true',
 parser.add_argument('--dummy', action='store_true', help="use fake data to benchmark")
 
 best_acc1 = 0
-writer = SummaryWriter(log_dir="runs/5")
+writer = SummaryWriter(log_dir="runs/task1_CPU")
 
 
 def main():
+    start_time = time.time()
     args = parser.parse_args()
 
 
@@ -123,6 +124,7 @@ def main():
         # Simply call main_worker function
         main_worker(args.gpu, ngpus_per_node, args)
     writer.close()
+    print("训练时长：{}s".format(time.time()-start_time))
 
 
 def main_worker(gpu, ngpus_per_node, args):
@@ -197,7 +199,7 @@ def main_worker(gpu, ngpus_per_node, args):
         device = torch.device("cpu")
     # define loss function (criterion), optimizer, and learning rate scheduler
     criterion = nn.CrossEntropyLoss().to(device)
-    writer.add_graph(model, torch.zeros((1, 3, 224, 224), device=device))
+    # writer.add_graph(model, torch.zeros((1, 3, 224, 224), device=device))
     optimizer = torch.optim.SGD(model.parameters(), args.lr,
                                 momentum=args.momentum,
                                 weight_decay=args.weight_decay)
@@ -242,8 +244,6 @@ def main_worker(gpu, ngpus_per_node, args):
         train_dataset = datasets.ImageFolder(
             traindir,
             transforms.Compose([
-                transforms.RandomResizedCrop(224),
-                transforms.RandomHorizontalFlip(),
                 transforms.ToTensor(),
                 normalize,
             ]))
@@ -251,8 +251,6 @@ def main_worker(gpu, ngpus_per_node, args):
         val_dataset = datasets.ImageFolder(
             valdir,
             transforms.Compose([
-                transforms.Resize(256),
-                transforms.CenterCrop(224),
                 transforms.ToTensor(),
                 normalize,
             ]))
@@ -284,13 +282,15 @@ def main_worker(gpu, ngpus_per_node, args):
         train(train_loader, model, criterion, optimizer, epoch, device, args)
 
         # evaluate on validation set
-        acc1 = validate(val_loader, model, criterion, args)
+        acc1, losses = validate(val_loader, model, criterion, args)
 
         scheduler.step()
 
         # remember best acc@1 and save checkpoint
         is_best = acc1 > best_acc1
         best_acc1 = max(acc1, best_acc1)
+        writer.add_scalar("val_best_acc1", best_acc1, epoch)
+        writer.add_scalar("val_loss", losses, epoch)
 
         if not args.multiprocessing_distributed or (args.multiprocessing_distributed
                                                     and args.rank % ngpus_per_node == 0):
@@ -349,26 +349,36 @@ def train(train_loader, model, criterion, optimizer, epoch, device, args):
         if i % args.print_freq == 0:
             progress.display(i + 1)
     writer.add_scalar("train_loss", loss, epoch)
-    writer.add_scalar("accuracy", acc5[0], epoch)
+    writer.add_scalar("train_accuracy", acc5[0], epoch)
+
 
 def validate(val_loader, model, criterion, args):
     def run_validate(loader, base_progress=0):
+        checkpoint1 = torch.load('checkpoint1.pth')
+        checkpoint2 = torch.load('checkpoint2.pth')
+        different_images = []
         with torch.no_grad():
             end = time.time()
             for i, (images, target) in enumerate(loader):
                 i = base_progress + i
                 if args.gpu is not None and torch.cuda.is_available():
                     images = images.cuda(args.gpu, non_blocking=True)
-                if torch.backends.mps.is_available():
-                    images = images.to('mps')
-                    target = target.to('mps')
                 if torch.cuda.is_available():
                     target = target.cuda(args.gpu, non_blocking=True)
 
                 # compute output
                 output = model(images)
                 loss = criterion(output, target)
-
+                model.load_state_dict(checkpoint1['state_dict'])
+                output1 = model(images)
+                _, predicted_label1 = torch.topk(output1, k=1)
+                pred1 = predicted_label1[0].item()
+                model.load_state_dict(checkpoint2['state_dict'])
+                output2 = model(images)
+                _, predicted_label2 = torch.topk(output2, k=1)
+                pred2 = predicted_label2[0].item()
+                if pred1 != pred2:
+                    different_images.append(i)
                 # measure accuracy and record loss
                 acc1, acc5 = accuracy(output, target, topk=(1, 5))
                 losses.update(loss.item(), images.size(0))
@@ -381,6 +391,19 @@ def validate(val_loader, model, criterion, args):
 
                 if i % args.print_freq == 0:
                     progress.display(i + 1)
+            print(f"评判结果不同的图片索引: {different_images[:10]}")
+            for s in different_images[:10]:
+                count = 0
+                subfolders = os.listdir(os.path.join(args.data, 'val'))
+                for folder in subfolders:
+                    folder_path = os.path.join(os.path.join(args.data, 'val'), folder)
+                    image_files = sorted(os.listdir(folder_path))
+                    num_images = len(image_files)
+                    if count + num_images >= s:
+                        image_name = image_files[s - count - 1]
+                        print(f"第 {s} 张图片：{image_name}")
+                        break
+                    count += num_images
 
     batch_time = AverageMeter('Time', ':6.3f', Summary.NONE)
     losses = AverageMeter('Loss', ':.4e', Summary.NONE)
@@ -390,7 +413,6 @@ def validate(val_loader, model, criterion, args):
         len(val_loader) + (args.distributed and (len(val_loader.sampler) * args.world_size < len(val_loader.dataset))),
         [batch_time, losses, top1, top5],
         prefix='Test: ')
-
     # switch to evaluate mode
     model.eval()
 
@@ -409,10 +431,10 @@ def validate(val_loader, model, criterion, args):
 
     progress.display_summary()
 
-    return top1.avg
+    return top1.avg, losses.avg
 
 
-def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
+def save_checkpoint(state, is_best, filename='checkpoint3.pth'):
     torch.save(state, filename)
     if is_best:
         shutil.copyfile(filename, 'model_best.pth.tar')
