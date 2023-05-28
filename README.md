@@ -28,7 +28,13 @@
 
 我们看到GPU的运行效果是远好于CPU的，然而单纯增多GPU的数量并没有给整体的运行速度带来很大改变。CPU本可以更快，指令`-j`设置大一点可以让CPU训练的更快一些。此外，GPU也不是越多越好，可能是数据加载和预处理的速度成为了训练速度的瓶颈，也可能是GPU 之间的通信和同步操作较为耗时，也有可能是操作有误。
 
-- **（利用--evaluate指令对比两次评估的差异）** 分别进行了两次训练得到了根目录下`checkpoint1.pth`和`checkpoint2.pth`。分别使用指令`python HW2.py -a resnet18 --gpu 0  --evaluate --resume checkpointX.pth C:\Users\Adydio\Desktop\大二下\pythondl\tiny-imagenet-200\tiny-imagenet-200`，$$X=1,2$$运行，得到的输出如下：
+- **（利用--evaluate指令对比两次评估的差异）** 分别进行了两次训练得到了根目录下`checkpoint1.pth`和`checkpoint2.pth`。分别使用指令
+
+```
+python HW2.py -a resnet18 --gpu 0  --evaluate --resume checkpointX.pth C:\Users\Adydio\Desktop\大二下\pythondl\tiny-imagenet-200\tiny-imagenet-200
+```
+
+$$X=1,2$$运行，得到的输出如下：
 
 ```
 Test: [ 1/40]   Time 15.294 (15.294)    Loss 3.4441e+00 (3.4441e+00)    Acc@1  34.77 ( 34.77)   Acc@5  63.28 ( 63.28)
@@ -131,9 +137,83 @@ tensorboard生成的结构图如下：
 
 <img src="images/task1.png" style="zoom:35%;" />
 
-### 代码改动说明（对应作业要求中的(1)）
+### 代码改动说明（对应作业要求中的(2)）
 
+在git中输入命令：
 
+```
+git diff 832351877971a97b800c0801dac38e303a2f2e84 4ce2e4a184d898d5bceedb8ec6ace5039ce789a6 HW2.py >HW2.diff
+```
+
+生成根目录下`HW2.diff`文件，下面分析我的所有改动：
+
+- 引入tensorboard
+
+```
++from torch.utils.tensorboard import SummaryWriter
++    writer.add_graph(model, torch.zeros((1, 3, 224, 224), device=device))
++        writer.add_scalar("val_best_acc1", best_acc1, epoch)
++        writer.add_scalar("val_loss", losses, epoch)
++    writer.add_scalar("train_loss", loss, epoch)
++    writer.add_scalar("train_accuracy", acc5[0], epoch)
++writer = SummaryWriter(log_dir="runs/task1_CPU")
++    writer.close()
+```
+
+- 计算运行时长
+
+```
++    start_time = time.time()
+
++    print("训练时长：{}s".format(time.time()-start_time))
+```
+
+- 修改输出维数至200
+
+```
+ def main_worker(gpu, ngpus_per_node, args):
+@@ -143,7 +150,10 @@ def main_worker(gpu, ngpus_per_node, args):
+     else:
+         print("=> creating model '{}'".format(args.arch))
+         model = models.__dict__[args.arch]()
+-
++    fc = model.fc
++    in_features = fc.in_features
++    new_fc = torch.nn.Linear(in_features, 200)
++    model.fc = new_fc
+```
+
+- 删去裁剪代码，提高运行速度
+
+```
+-                transforms.RandomResizedCrop(224),
+-                transforms.RandomHorizontalFlip(),
+
+-                transforms.Resize(256),
+-                transforms.CenterCrop(224),
+```
+
+- 获取每个epoch的loss便于用tensorboard作图
+
+```
+-        acc1 = validate(val_loader, model, criterion, args)
++        acc1, losses = validate(val_loader, model, criterion, args)
+```
+
+注意下面validate函数的返回值多了一个loss。
+
+- 修改validate函数
+
+```
+@@ -401,10 +431,10 @@ def validate(val_loader, model, criterion, args):
+ 
+     progress.display_summary()
+ 
+-    return top1.avg
++    return top1.avg, losses.avg
+```
+
+还有零星的删改，参考了bitahub上面范例，如果不做一些小的改动仍然会报错。所有的修改可以在`HW2.diff`里查看。输出十张判断不同的图片代码之前讲过了这里就不赘述。
 
 ## 任务二：复现Word-level Language Model并讨论
 
@@ -158,4 +238,16 @@ tensorboard生成的结构图如下：
 UnicodeEncodeError: 'gbk' codec can't encode character '\xeb' in position 2: illegal multibyte sequence
 ```
 
-在原代码第66行写入文件的代码中加入`encoding='utf-8'`成功解决问题。生成的文本在`generated.txt`中。
+在原代码第66行写入文件的代码中加入`encoding='utf-8'`成功解决问题。生成的文本在`generated.txt`中。最后几行输出如下：
+
+```
+| Generated 700/1000 words
+| Generated 800/1000 words
+| Generated 900/1000 words
+```
+
+具体实验截图见“实验截图”文件夹。
+
+### (2)可视化transformer结构
+
+### (3)阅读论文和总结

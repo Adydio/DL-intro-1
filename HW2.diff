@@ -1,16 +1,7 @@
 diff --git a/HW2.py b/HW2.py
-index 42527db..05d2c90 100644
+index 42527db..0fb1be0 100644
 --- a/HW2.py
 +++ b/HW2.py
-@@ -5,7 +5,7 @@ import shutil
- import time
- import warnings
- from enum import Enum
--
-+from PIL import Image
- import torch
- import torch.backends.cudnn as cudnn
- import torch.distributed as dist
 @@ -21,6 +21,8 @@ import torchvision.transforms as transforms
  from torch.optim.lr_scheduler import StepLR
  from torch.utils.data import Subset
