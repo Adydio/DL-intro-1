@@ -28,7 +28,7 @@
 
 我们看到GPU的运行效果是远好于CPU的，然而单纯增多GPU的数量并没有给整体的运行速度带来很大改变。CPU本可以更快，指令`-j`设置大一点可以让CPU训练的更快一些。此外，GPU也不是越多越好，可能是数据加载和预处理的速度成为了训练速度的瓶颈，也可能是GPU 之间的通信和同步操作较为耗时，也有可能是操作有误。
 
-- **（利用--evaluate指令对比两次评估的差异）** 分别进行了两次训练得到了根目录下`checkpoint1.pth`和`checkpoint2.pth`。分别使用指令`python HW2.py -a resnet18 --gpu 0  --evaluate --resume checkpointX.pth C:\Users\Adydio\Desktop\大二下\pythondl\tiny-imagenet-200\tiny-imagenet-200`，$X=1,2$运行，得到的输出如下：
+- **（利用--evaluate指令对比两次评估的差异）** 分别进行了两次训练得到了根目录下`checkpoint1.pth`和`checkpoint2.pth`。分别使用指令`python HW2.py -a resnet18 --gpu 0  --evaluate --resume checkpointX.pth C:\Users\Adydio\Desktop\大二下\pythondl\tiny-imagenet-200\tiny-imagenet-200`，$$X=1,2$$运行，得到的输出如下：
 
 ```
 Test: [ 1/40]   Time 15.294 (15.294)    Loss 3.4441e+00 (3.4441e+00)    Acc@1  34.77 ( 34.77)   Acc@5  63.28 ( 63.28)
