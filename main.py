@@ -113,7 +113,7 @@ else:
     model = model.RNNModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied).to(device)
 
 criterion = nn.NLLLoss()
-writer.add_graph(model, torch.zeros((1, 64), device=device, dtype=torch.int))
+#writer.add_graph(model, torch.zeros((1, 64), device=device, dtype=torch.int))
 ###############################################################################
 # Training code
 ###############################################################################

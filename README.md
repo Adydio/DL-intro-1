@@ -10,13 +10,13 @@
 - 配置了tensorboard，先试一下3个epoch，可以在tensorboard里面看到网络的结构（见后）。手动添加代码记录accuracy和loss，图像均有显示。然而training的accuracy最高也在百分之六七十。
 - 写脚本`change_tag.py`，参考了bitahub上面的`val_reorg`文件夹的排布形式，将原有的`val`文件夹改成了相对应的形式。再次运行，一开始出现了bug，我猜测原因是文件夹的形式发生了变化，这也是意料之中。因此我有参考了bitahub上反例的`main.py`修改了读取测试集的代码，运行成功。此外，我还删去了对图像进行裁剪的代码，这一次训练速度比之前快了很多，在训练集上的表现非常好，在大约14-15个epoch后在训练集上的accuracy始终维持在95%以上，相对应的，training loss也在逐渐降低。而对于测试集，其acc@5没有突破过60%。最终运行一次，增加了一些tensorboard的graph，并且微调了checkpoint的文件名。validation loss在约7-8个epoch后不减反增，判断为过拟合现象。下图中，train_accuracy是训练的top5精度，val_best_acc1是测试集的top1精度。图中的横轴均为epoch。
 
-![image-20230527153419125](images/image-20230527153419125.png)
+![](images/image-20230527153419125.png)
 
-![image-20230527153534316](images/image-20230527153534316.png)
+![](images/image-20230527153534316.png)
 
-![image-20230527153557219](images/image-20230527153557219.png)
+![](images/image-20230527153557219.png)
 
-![image-20230527153613513](images/image-20230527153613513.png)
+![](images/image-20230527153613513.png)
 
 - **（比对不同GPU数量的训练时间）** 加入了时间参数，得到的结果如下：
 
@@ -129,10 +129,33 @@ Test: [31/40]   Time  0.050 ( 0.461)    Loss 4.8590e+00 (4.4470e+00)    Acc@1  2
 
 tensorboard生成的结构图如下：
 
-<img src="../../../../blog/themes/new2/source/img/task1.png" style="zoom:35%;" />
+<img src="images/task1.png" style="zoom:35%;" />
 
 ### 代码改动说明（对应作业要求中的(1)）
 
 
 
 ## 任务二：复现Word-level Language Model并讨论
+
+### (1)复现
+
+利用指令`python main.py --cuda --epochs 6 --model Transformer --lr 5`训练模型，最后几行的输出如下：
+
+```
+| epoch   6 |  2600/ 2983 batches | lr 5.00 | ms/batch 13.81 | loss  4.87 | ppl   130.35
+| epoch   6 |  2800/ 2983 batches | lr 5.00 | ms/batch 13.94 | loss  4.81 | ppl   123.03
+-----------------------------------------------------------------------------------------
+| end of epoch   6 | time: 45.16s | valid loss  5.36 | valid ppl   212.05
+-----------------------------------------------------------------------------------------
+=========================================================================================
+| End of training | test loss  5.26 | test ppl   192.94
+=========================================================================================
+```
+
+在利用`python generate.py --cuda`指令生成文本，刚开始遇到报错：
+
+```
+UnicodeEncodeError: 'gbk' codec can't encode character '\xeb' in position 2: illegal multibyte sequence
+```
+
+在原代码第66行写入文件的代码中加入`encoding='utf-8'`成功解决问题。生成的文本在`generated.txt`中。

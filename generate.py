@@ -63,7 +63,7 @@ if not is_transformer_model:
     hidden = model.init_hidden(1)
 input = torch.randint(ntokens, (1, 1), dtype=torch.long).to(device)
 
-with open(args.outf, 'w') as outf:
+with open(args.outf, 'w', encoding='utf-8') as outf:
     with torch.no_grad():  # no tracking history
         for i in range(args.words):
             if is_transformer_model:
