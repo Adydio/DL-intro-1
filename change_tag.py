@@ -3,10 +3,8 @@ import shutil
 
 
 def create_class_folders(val_annotations_file, val_folder):
-    # 创建用于存放类别文件夹的目标文件夹
     target_folder = os.path.join(val_folder, 'classified')
     os.makedirs(target_folder, exist_ok=True)
-    # 读取val_annotations.txt文件，获取图像与对应类别的映射关系
     annotations = {}
     with open(val_annotations_file, 'r') as file:
         for line in file.readlines():

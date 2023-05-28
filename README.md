@@ -1,5 +1,17 @@
 # DL-intro-1
 
+文件说明：
+
+> task1
+
+`change_tag.py`是改动val文件夹排布的脚本；
+
+`HW2.py`是运行脚本，对应的`HW2.diff`为改动文件。
+
+> task2
+
+其余python文件均为task2。
+
 ## 任务一：**在** **Tiny-ImageNet** **数据集上训练** **Resnet** 模型
 
 ### 调试过程（对应作业要求中的(3)(4)(5)(6)）
@@ -135,7 +147,7 @@ Test: [31/40]   Time  0.050 ( 0.461)    Loss 4.8590e+00 (4.4470e+00)    Acc@1  2
 
 tensorboard生成的结构图如下：
 
-<img src="images/task1.png" style="zoom:35%;" />
+<img src="images/task1.png" style="zoom:25%;" />
 
 ### 代码改动说明（对应作业要求中的(2)）
 
@@ -248,6 +260,54 @@ UnicodeEncodeError: 'gbk' codec can't encode character '\xeb' in position 2: ill
 
 具体实验截图见“实验截图”文件夹。
 
-### (2)可视化transformer结构
+### (2)可视化Transformer结构
+
+用tensorboard尝试数小时后失败，首先尝试手动打印Transformer的结构：
+
+```
+TransformerModel(
+  (pos_encoder): PositionalEncoding(
+    (dropout): Dropout(p=0.2, inplace=False)
+  )
+  (Transformer_encoder): TransformerEncoder(
+    (layers): ModuleList(
+      (0-1): 2 x TransformerEncoderLayer(
+        (self_attn): MultiheadAttention(
+          (out_proj): NonDynamicallyQuantizableLinear(in_features=200, out_features=200, bias=True)
+        )
+        (linear1): Linear(in_features=200, out_features=200, bias=True)
+        (dropout): Dropout(p=0.2, inplace=False)
+        (linear2): Linear(in_features=200, out_features=200, bias=True)
+        (norm1): LayerNorm((200,), eps=1e-05, elementwise_affine=True)
+        (norm2): LayerNorm((200,), eps=1e-05, elementwise_affine=True)
+        (dropout1): Dropout(p=0.2, inplace=False)
+        (dropout2): Dropout(p=0.2, inplace=False)
+      )
+    )
+  )
+  (encoder): Embedding(33278, 200)
+  (decoder): Linear(in_features=200, out_features=33278, bias=True)
+)
+```
+
+在此之后由于没有直接手段获取输入的维数，索性直接使用代码中的data来作为dummydata。但是遇到离奇报错，最终修改了`models.py`中142-143行部分参数解决问题。得到的图如下：
+
+<img src="images/task2_cuda_1.png" style="zoom:25%;" />
+
+相比在网上或者视频上看到的Transformer模型，这个模型应该是得到了简化的。
 
 ### (3)阅读论文和总结
+
+>  Attention is All You Need
+
+我觉得这篇论文提出的 Transformer 模型在捕捉上下文依赖方面与传统的卷积神经网络 (CNN) 有明显的差异。传统的卷积神经网络主要利用卷积操作来提取局部特征和捕捉局部依赖关系。通过滑动窗口的方式，卷积神经网络将输入信号的局部信息与卷积核进行卷积操作，从而生成具有空间局部性的特征图。这种局部连接和共享权重的设计使得卷积神经网络在处理图像等具有局部结构的数据时表现出色。然而，对于长距离的依赖关系，传统的卷积操作受限于固定大小的局部感受野，可能无法充分捕捉到全局的上下文信息。
+
+相比之下，Transformer 模型采用了全局注意力机制，通过在输入序列中建立全连接的注意力机制来捕捉输入元素之间的长距离依赖关系。Transformer 不受局部感受野的限制，它可以同时对整个输入序列进行注意力计算，将输入序列中的每个元素都与其他元素进行交互和关联。这种全局性的注意力机制使得 Transformer 在处理自然语言处理任务等需要考虑全局语义依赖关系的任务时表现出色。
+
+对此，我的理解是，Transformer 模型的全局注意力机制可以看作是一种对整个输入序列的综合处理，它能够更好地捕捉到上下文之间的依赖关系，避免了局部感受野的限制。而卷积神经网络在处理图像等具有局部结构的数据时更为适用，因为它能够有效地提取局部特征和捕捉局部依赖关系。
+
+总的来说，Transformer 模型通过全局注意力机制实现了对长距离上下文依赖关系的捕捉，而传统的卷积神经网络则更适用于处理具有局部结构的数据。
+
+## 总结和吐槽
+
+巨难，一堆bug，可能是基础不牢，在一些简单的问题上面死磕耗时间。好在最后大部分都能完成，但是限于时间水平，我已经尽力了。每次肝代码收获都很大那是真的。这一次对于一些简单模型的训练流程有所了解，我也见识了包括但不限于命令行，GPU，cuda，git diff（真的很方便），pytorch，os还有很酷的tensorboard等等我从来没接触过的内容，也初步认识了resnet和Transformer这样的网络，还是让自己开了眼界的。总之谢谢老师和助教！

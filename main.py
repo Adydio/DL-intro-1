@@ -9,7 +9,7 @@ import torch.onnx
 from torch.utils.tensorboard import SummaryWriter
 import data
 import model
-
+writer = SummaryWriter(log_dir="runs/task2_cuda")
 parser = argparse.ArgumentParser(description='PyTorch Wikitext-2 RNN/LSTM/GRU/Transformer Language Model')
 parser.add_argument('--data', type=str, default='./data/wikitext-2',
                     help='location of the data corpus')
@@ -52,7 +52,7 @@ parser.add_argument('--nhead', type=int, default=2,
 parser.add_argument('--dry-run', action='store_true',
                     help='verify the code and the model')
 args = parser.parse_args()
-writer = SummaryWriter(log_dir="runs/task2_GPU")
+
 # Set the random seed manually for reproducibility.
 torch.manual_seed(args.seed)
 if torch.cuda.is_available():
@@ -111,13 +111,12 @@ if args.model == 'Transformer':
     model = model.TransformerModel(ntokens, args.emsize, args.nhead, args.nhid, args.nlayers, args.dropout).to(device)
 else:
     model = model.RNNModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied).to(device)
-
+#writer.add_graph(model, torch.tensor([0]*200, dtype=int).to(device))
 criterion = nn.NLLLoss()
 
 ###############################################################################
 # Training code
 ###############################################################################
-
 
 def repackage_hidden(h):
     """Wraps hidden states in new Tensors, to detach them from their history."""
@@ -156,7 +155,6 @@ def evaluate(data_source):
         for i in range(0, data_source.size(0) - 1, args.bptt):
             data, targets = get_batch(data_source, i)
             if args.model == 'Transformer':
-                writer.add_graph(model, torch.zeros((1, 256), device=device, dtype=torch.int))
                 output = model(data)
                 output = output.view(-1, ntokens)
             else:
@@ -168,13 +166,13 @@ def evaluate(data_source):
 
 def train():
     # Turn on training mode which enables dropout.
+    flag = 1
     model.train()
     total_loss = 0.
     start_time = time.time()
     ntokens = len(corpus.dictionary)
     if args.model != 'Transformer':
         hidden = model.init_hidden(args.batch_size)
-    flag = 1
     for batch, i in enumerate(range(0, train_data.size(0) - 1, args.bptt)):
         data, targets = get_batch(train_data, i)
         # Starting each batch, we detach the hidden state from how it was previously produced.
