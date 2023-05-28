@@ -5,7 +5,7 @@ import shutil
 import time
 import warnings
 from enum import Enum
-from PIL import Image
+
 import torch
 import torch.backends.cudnn as cudnn
 import torch.distributed as dist
